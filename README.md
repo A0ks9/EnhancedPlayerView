@@ -6,6 +6,3 @@ EnhancedPlayerView is a good idea for you to improve ur design and make things m
 [![](https://jitci.com/gh/karim-eg/glide-slider/svg)](https://jitci.com/gh/karim-eg/glide-slider)
 [![Build](https://github.com/karim-eg/glide-slider/actions/workflows/android.yml/badge.svg)](https://github.com/karim-eg/glide-slider/actions/workflows/android.yml)
 ![GitHub release (with filter)](https://img.shields.io/github/v/release/karim-eg/glide-slider)
-
-![Repo Size](https://img.shields.io/github/repo-size/3bdelra7man3omr/EnhancedPlayerView)
-[![Lines Of Code](https://tokei.rs/b1/github/3bdelra7man3omr/EnhancedPlayerView?category=code)](https://github.com/3bdelra7man3omr/EnhancedPlayerView/)
