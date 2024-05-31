@@ -73,7 +73,7 @@ app:controller_layout_id="@layout/exo_control_view"
 <br>
 
 ### Step 5
-> If you want to cache the video to be doesnt downloaded every time the user Open the App Then add this to the EnhancedPlayerView view
+> If you want to cache the video, so it doesn't download every time the user opens the app. Then add this to the EnhancedPlayerView view
 ```java
 binding.playerView.initializeDatabaseProvider();
 binding.playerView.initializeActivityResult(getActivityResultRegistry());
