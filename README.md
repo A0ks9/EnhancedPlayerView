@@ -117,7 +117,6 @@ if (player != null) {
     binding.playerView.setPlayer(null);
     player.release();
 }
-this.binding = null;
 ```
 
 <br>
