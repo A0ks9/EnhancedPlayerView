@@ -42,7 +42,7 @@ dependencies {
   
 ### Step 3
 > Add this widget to your `xml` activity file
-```
+```xml
 <com.better.player.EnhancedPlayerView
   android:id="@+id/name_view"
   android:layout_width="match_parent"
@@ -58,7 +58,7 @@ dependencies {
 
 **important**
 - you should add without changing anything
-```
+```xml
 app:animation_enabled="false"
 app:hide_on_touch="false"
 app:show_timeout="0"
@@ -74,7 +74,7 @@ app:controller_layout_id="@layout/exo_control_view"
 
 ### Step 5
 > If you want to cache the video to be doesnt downloaded every time the user Open the App Then add this to the EnhancedPlayerView view
-```
+```java
 binding.playerView.initializeDatabaseProvider();
 binding.playerView.initializeActivityResult(getActivityResultRegistry());
 ```
@@ -82,8 +82,8 @@ binding.playerView.initializeActivityResult(getActivityResultRegistry());
 <br>
 
 ### Step 6
-> **Important: ** You should add this code at the beginning Of onCreate
-```
+> **Important:** You should add this code at the beginning Of onCreate
+```java
 binding.playerView.initializeViews(getResources(), getPackageName());
 ```
 
@@ -91,7 +91,7 @@ binding.playerView.initializeViews(getResources(), getPackageName());
 
 ### Step 7
 > After adding ExoPlayer to the project and intializing it then use it with the EnhancedPlayerView like this
-```
+```java
 binding.playerView.setPlayer(player);
 player.setMediaSource(binding.playerView.EnableCaching(mediaUrl));
 player.prepare();
@@ -101,17 +101,17 @@ player.prepare();
 
 ### Step 8
 > Add this Code in onResume of your Activity/Fragment
-```
+```java
 binding.playerView.onResumeActivity();
 ```
 
 > Add this code in onPause of your Activity/Fragment
-```
+```java
 binding.playerView.onPauseActivity();
 ```
 
 > Add this code in onDestory of your Activity/Fragment
-```
+```java
 binding.playerView.onDestroyActivity();
 if (player != null) {
     binding.playerView.setPlayer(null);
@@ -124,7 +124,7 @@ this.binding = null;
 
 ### OPTIONAL
 > If you are looking for video orientation based on phone orientation then Add this code in your Activity/Fragment
-```
+```java
 @Override
 public void onConfigurationChanged(@NonNull Configuration newConfig) {
     super.onConfigurationChanged(newConfig);
@@ -136,7 +136,7 @@ public void onConfigurationChanged(@NonNull Configuration newConfig) {
 
 ### OPTIONAL
 > If tou are looking for PIP for the video then Add this code in your Activity/Fragment
-```
+```java
 @Override
 public void onUserLeaveHint() {
     binding.playerView.onUserLeaveHintActivity();
@@ -151,4 +151,4 @@ public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode) {
 
 
 ### IMPORTANT
-** If you want to add new features to the library, you can change and add codes to the library. but when you add a new code then use a comment to explain the code for other developers to make the things easy to understand. **
+**If you want to add new features to the library, you can change and add codes to the library. but when you add a new code then use a comment to explain the code for other developers to make the things easy to understand.**
