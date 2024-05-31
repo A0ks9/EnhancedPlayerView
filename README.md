@@ -14,7 +14,7 @@ EnhancedPlayerView is a good idea for you to improve your design and make things
 ## Usage
 
 
-###Step 1
+### Step 1
 > Add this line to root `build.gradle` at allprojects block code:
 ```gradle
 allprojects {
@@ -34,13 +34,13 @@ dependencies {
 
 <br>
 
-###Step 2
+### Step 2
 > Add this file code without changing its name to your project Link:
 [exo_control_view](https://github.com/A0ks9/EnhancedPlayerView/blob/main/app/src/main/res/layout/exo_control_view.xml)
 
 <br>
   
-###Step 3
+### Step 3
 > Add this widget to your `xml` activity file
 ```
 <com.better.player.EnhancedPlayerView
@@ -55,6 +55,7 @@ dependencies {
   app:hide_on_touch="false"
   app:show_timeout="0" />
 ```
+
 **important**
 - you should add without changing anything
 ```
@@ -66,12 +67,12 @@ app:controller_layout_id="@layout/exo_control_view"
 
 <br>
 
-###Step 4
+### Step 4
 > add ExoPlayer to your project and use it normally
 
 <br>
 
-###Step 5
+### Step 5
 > If you want to cache the video to be doesnt downloaded every time the user Open the App Then add this to the EnhancedPlayerView view
 ```
 binding.playerView.initializeDatabaseProvider();
@@ -80,7 +81,7 @@ binding.playerView.initializeActivityResult(getActivityResultRegistry());
 
 <br>
 
-###Step 6
+### Step 6
 > **Important: ** You should add this code at the beginning Of onCreate
 ```
 binding.playerView.initializeViews(getResources(), getPackageName());
@@ -88,7 +89,7 @@ binding.playerView.initializeViews(getResources(), getPackageName());
 
 <br>
 
-###Step 7
+### Step 7
 > After adding ExoPlayer to the project and intializing it then use it with the EnhancedPlayerView like this
 ```
 binding.playerView.setPlayer(player);
@@ -98,7 +99,7 @@ player.prepare();
 
 <br>
 
-###Step 8
+### Step 8
 > Add this Code in onResume of your Activity/Fragment
 ```
 binding.playerView.onResumeActivity();
@@ -121,7 +122,7 @@ this.binding = null;
 
 <br>
 
-###OPTIONAL
+### OPTIONAL
 > If you are looking for video orientation based on phone orientation then Add this code in your Activity/Fragment
 ```
 @Override
@@ -133,7 +134,7 @@ public void onConfigurationChanged(@NonNull Configuration newConfig) {
 
 <br>
 
-###OPTIONAL
+### OPTIONAL
 > If tou are looking for PIP for the video then Add this code in your Activity/Fragment
 ```
 @Override
@@ -149,5 +150,5 @@ public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode) {
 ```
 
 
-###IMPORTANT
+### IMPORTANT
 ** If you want to add new features to the library, you can change and add codes to the library. but when you add a new code then use a comment to explain the code for other developers to make the things easy to understand. **
