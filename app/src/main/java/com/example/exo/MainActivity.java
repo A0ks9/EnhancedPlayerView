@@ -26,7 +26,6 @@ public class MainActivity extends AppCompatActivity {
 
         binding.playerView.initializeDatabaseProvider();
         binding.playerView.initializeActivityResult(getActivityResultRegistry());
-        binding.playerView.initializeViews(getResources(), getPackageName());
 
         player = new ExoPlayer.Builder(this).build();
         binding.playerView.setPlayer(player);

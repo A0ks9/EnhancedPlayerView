@@ -24,7 +24,7 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = true
+            isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -62,7 +62,7 @@ publishing {
         create<MavenPublication>("release") {
             groupId = "com.github.A0ks9"
             artifactId = "EnhancedPlayerView"
-            version = "1.0-Beta02"
+            version = "1.0-Beta"
 
             afterEvaluate {
                 from(components["release"])

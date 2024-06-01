@@ -28,7 +28,7 @@ allprojects {
 > then add this line into your `build.gradle` app level.
 ```gradle
 dependencies {
-    implementation 'com.github.A0ks9:EnhancedPlayerView:1.0.0-Beta02'
+    implementation 'com.github.A0ks9:EnhancedPlayerView:1.0.0-Beta'
 }
 ```
 

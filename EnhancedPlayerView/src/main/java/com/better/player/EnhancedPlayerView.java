@@ -15,7 +15,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
-import android.content.res.Resources;
 import android.content.res.TypedArray;
 import android.graphics.Rect;
 import android.graphics.drawable.Icon;
@@ -178,7 +177,7 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
     public EnhancedPlayerView(Context context) {
         super(context, null);
         gestureDetector = new GestureDetector(context, new GestureListener());
-        //initializeViews();
+        initializeViews();
     }
 
     public EnhancedPlayerView(Context context, AttributeSet attrs) {
@@ -191,7 +190,7 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
         typedArray.recycle();
 
         gestureDetector = new GestureDetector(context, new GestureListener());
-        //initializeViews();
+        initializeViews();
     }
 
     public EnhancedPlayerView(Context context, AttributeSet attrs, int defStyleAttr) {
@@ -204,7 +203,7 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
         typedArray.recycle();
 
         gestureDetector = new GestureDetector(context, new GestureListener());
-        //initializeViews();
+        initializeViews();
     }
 
     @SuppressLint("DefaultLocale")
@@ -267,26 +266,25 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
             originalResizeMode = resizeMode;
     }
 
-    @SuppressLint("DiscouragedApi")
-    public void initializeViews(Resources r, String PackageName) {
-        Base = findViewById(r.getIdentifier("Base", "id", PackageName));
-        Play = findViewById(r.getIdentifier("exo_play", "id", PackageName));
-        Progress = findViewById(r.getIdentifier("exo_progress", "id", PackageName));
-        MoreSettings = findViewById(r.getIdentifier("more_settings", "id", PackageName));
-        SoundProgress = findViewById(r.getIdentifier("sound_progress", "id", PackageName));
-        SoundIcon = findViewById(r.getIdentifier("sound_icon", "id", PackageName));
-        close = findViewById(r.getIdentifier("close", "id", PackageName));
-        shrink = findViewById(r.getIdentifier("shrink", "id", PackageName));
-        bottomControls = findViewById(r.getIdentifier("controls", "id", PackageName));
-        volumes = findViewById(r.getIdentifier("volumes", "id", PackageName));
-        TimeLeft = findViewById(r.getIdentifier("timeLeft", "id", PackageName));
-        Speed = findViewById(r.getIdentifier("speed", "id", PackageName));
-        SpeedCard = findViewById(r.getIdentifier("speedCard", "id", PackageName));
-        Speeds = findViewById(r.getIdentifier("speeds", "id", PackageName));
-        SpeedT = findViewById(r.getIdentifier("SpeedT", "id", PackageName));
-        progress = findViewById(r.getIdentifier("progress", "id", PackageName));
-        UID = findViewById(r.getIdentifier("userID", "id", PackageName));
-        UserID = findViewById(r.getIdentifier("UserID", "id", PackageName));
+    private void initializeViews() {
+        Base = findViewById(R.id.Base);
+        Play = findViewById(R.id.exo_play);
+        Progress = findViewById(R.id.exo_progress);
+        MoreSettings = findViewById(R.id.more_settings);
+        SoundProgress = findViewById(R.id.sound_progress);
+        SoundIcon = findViewById(R.id.sound_icon);
+        close = findViewById(R.id.close);
+        shrink = findViewById(R.id.shrink);
+        bottomControls = findViewById(R.id.controls);
+        volumes = findViewById(R.id.volumes);
+        TimeLeft = findViewById(R.id.timeLeft);
+        Speed = findViewById(R.id.speed);
+        SpeedCard = findViewById(R.id.speedCard);
+        Speeds = findViewById(R.id.speeds);
+        SpeedT = findViewById(R.id.SpeedT);
+        progress = findViewById(R.id.progress);
+        UID = findViewById(R.id.userID);
+        UserID = findViewById(R.id.UserID);
     }
 
     private void initialize() {
