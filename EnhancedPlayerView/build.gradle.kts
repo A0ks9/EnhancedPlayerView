@@ -10,7 +10,6 @@ android {
 
     defaultConfig {
         minSdk = 21
-        targetSdk = 34
         multiDexEnabled = true
 
         vectorDrawables {
@@ -63,7 +62,7 @@ publishing {
         create<MavenPublication>("release") {
             groupId = "com.github.A0ks9"
             artifactId = "EnhancedPlayerView"
-            version = "1.0"
+            version = "1.0-Beta02"
 
             afterEvaluate {
                 from(components["release"])
@@ -77,7 +76,6 @@ dependencies {
     implementation("com.github.bumptech.glide:glide:4.16.0")
     annotationProcessor("com.github.bumptech.glide:compiler:4.16.0")
 
-    implementation("com.github.Dimezis:BlurView:version-2.0.4")
     implementation("androidx.mediarouter:mediarouter:1.7.0")
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")

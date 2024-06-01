@@ -17,8 +17,6 @@ import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
-import android.graphics.Color;
-import android.graphics.Outline;
 import android.graphics.Rect;
 import android.graphics.drawable.Icon;
 import android.media.AudioManager;
@@ -33,7 +31,6 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.ViewGroup;
-import android.view.ViewOutlineProvider;
 import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
@@ -82,8 +79,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-
-import eightbitlab.com.blurview.BlurView;
 
 @OptIn(markerClass = UnstableApi.class)
 public final class EnhancedPlayerView extends PlayerView implements View.OnClickListener, View.OnTouchListener, Listener, CustomDefaultTimeBar.ProgressChangeListener, View.OnLayoutChangeListener {
@@ -135,7 +130,7 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
     private CustomProgress SoundProgress;
     private ConstraintLayout volumes, Base;
     private CardView Speed, bottomControls;
-    private BlurView SpeedCard;
+    private CardView SpeedCard;
     private RecyclerView Speeds;
     private LinearLayout UserID;
     private SpeedProgress progress;
@@ -330,19 +325,6 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
                 animateTextPosition(containerWidth, containerHeight, UID);
             });
         }
-
-        final View view = ((Activity) getContext()).getWindow().getDecorView();
-        ViewGroup rootView = view.findViewById(android.R.id.content);
-        SpeedCard.setupWith(rootView).setFrameClearDrawable(view.getBackground()).setBlurRadius(5f).setBlurAutoUpdate(true).setOverlayColor(Color.parseColor("#e2e2e2"));
-
-        SpeedCard.setClipToOutline(true);
-        SpeedCard.setOutlineProvider(new ViewOutlineProvider() {
-            @Override
-            public void getOutline(View view, Outline outline) {
-                SpeedCard.getBackground().getOutline(outline);
-                outline.setAlpha(1f);
-            }
-        });
 
         mediaRouter = MediaRouter.getInstance(getContext());
         selector = new MediaRouteSelector.Builder().addControlCategory(MediaControlIntent.CATEGORY_LIVE_AUDIO).build();

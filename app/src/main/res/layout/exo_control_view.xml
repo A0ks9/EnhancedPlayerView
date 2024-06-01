@@ -175,13 +175,14 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <eightbitlab.com.blurview.BlurView
+        <androidx.cardview.widget.CardView
             android:id="@+id/speedCard"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="@drawable/blur_drawable"
-            android:elevation="5dp"
             android:visibility="invisible"
+            app:cardBackgroundColor="#e2e2e2"
+            app:cardCornerRadius="10dp"
+            app:cardElevation="5dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="0.94"
@@ -242,7 +243,7 @@
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 
-        </eightbitlab.com.blurview.BlurView>
+        </androidx.cardview.widget.CardView>
 
         <androidx.cardview.widget.CardView
             android:id="@+id/controls"
