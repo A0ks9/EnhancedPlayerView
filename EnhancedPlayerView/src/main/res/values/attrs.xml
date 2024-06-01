@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <declare-styleable name="EnhancedPlayerView">
-        <attr name="show_close" format="boolean" />
-        <attr name="show_floating_text" format="boolean" />
-        <attr name="hide_by_touching" format="boolean"/>
-        <attr name="hide_time_out" format="integer" />
+        <attr name="showAdditionalButton" format="boolean" />
+        <attr name="showFloatingText" format="boolean" />
+        <attr name="hideByTouching" format="boolean" />
+        <attr name="hideTimeout" format="integer" />
+        <attr name="additionalButtonImage" format="reference" />
     </declare-styleable>
 </resources>

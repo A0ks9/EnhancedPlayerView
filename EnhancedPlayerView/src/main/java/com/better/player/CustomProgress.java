@@ -9,7 +9,7 @@ import com.google.android.material.progressindicator.LinearProgressIndicator;
 
 public class CustomProgress extends LinearProgressIndicator {
 
-    private progressChangesListener listener;
+    private ProgressChangesListener listener;
     private boolean isDragging = false;
 
     public CustomProgress(Context context) {
@@ -67,11 +67,11 @@ public class CustomProgress extends LinearProgressIndicator {
         return isDragging;
     }
 
-    public void setProgressChangesListener(progressChangesListener listener) {
+    public void setProgressChangesListener(ProgressChangesListener listener) {
         this.listener = listener;
     }
 
-    public interface progressChangesListener {
+    public interface ProgressChangesListener {
         void onProgressChanges(int progress);
 
         void onStartTrackingTouch();

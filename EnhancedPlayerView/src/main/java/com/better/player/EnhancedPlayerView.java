@@ -16,6 +16,7 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.content.res.TypedArray;
+import android.graphics.BitmapFactory;
 import android.graphics.Rect;
 import android.graphics.drawable.Icon;
 import android.media.AudioManager;
@@ -80,7 +81,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 @OptIn(markerClass = UnstableApi.class)
-public final class EnhancedPlayerView extends PlayerView implements View.OnClickListener, View.OnTouchListener, Listener, CustomDefaultTimeBar.ProgressChangeListener, View.OnLayoutChangeListener {
+public class EnhancedPlayerView extends PlayerView implements View.OnClickListener, View.OnTouchListener, Listener, CustomDefaultTimeBar.ProgressChangeListener, View.OnLayoutChangeListener {
 
     private static final String ACTION_MEDIA_CONTROL = "media_control";
     private static final String EXTRA_CONTROL_TYPE = "control_type";
@@ -92,116 +93,86 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
     private static final int CONTROL_TYPE_FORWARD = 2;
 
     @RequiresApi(api = Build.VERSION_CODES.O)
-    private final PictureInPictureParams.Builder pictureParams = new PictureInPictureParams.Builder();
+    private final PictureInPictureParams.Builder pipParamsBuilder = new PictureInPictureParams.Builder();
 
-    private final ArrayList<RemoteAction> actions = new ArrayList<>();
-    private final List<SpeedItems> speeds = new ArrayList<>();
+    private final ArrayList<RemoteAction> remoteActions = new ArrayList<>();
+    private final List<SpeedItems> speedItemsList = new ArrayList<>();
 
-    private final Handler handler = new Handler(Looper.getMainLooper());
-    private final Handler handler2 = new Handler(Looper.getMainLooper());
-    private final GestureDetector gestureDetector;
-    private boolean hideONTouch = false;
-    private ActivityResultLauncher<Intent> ActivityResult;
-    private ExoPlayer player;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final Handler hideControllerHandler = new Handler(Looper.getMainLooper());
+    private GestureDetector gestureDetector;
+    private boolean hideOnTouch = false;
+    private ActivityResultLauncher<Intent> activityResultLauncher;
+    private ExoPlayer exoPlayer;
     private DatabaseProvider databaseProvider;
     private Cache cache;
     private MediaRouter mediaRouter;
-    private MediaRouter.Callback Callback;
-    private MediaRouteSelector selector;
+    private MediaRouter.Callback mediaRouterCallback;
+    private MediaRouteSelector mediaRouteSelector;
     private int containerWidth = 0;
     private int containerHeight = 0;
-    private int OHeight;
-    private int OWidth;
+    private int originalHeight;
+    private int originalWidth;
     private int originalResizeMode;
-    private int controllerShowTime;
-    private int[] New = new int[2];
-    private int[] oldXY = new int[2];
+    private int hideTimeout;
+    private int additionalButtonImageId;
+    private int[] newCoordinates = new int[2];
+    private int[] oldCoordinates = new int[2];
     private boolean isLongClick = false;
     private boolean isClickOnRight = false;
-    private boolean isPiP = false;
+    private boolean isPipMode = false;
     private boolean reversing = false;
-    private boolean showClose;
+    private boolean showAdditionalButton;
     private boolean showFloatingText;
-    private boolean hiddenViews = false;
-    private boolean oldLongClick;
+    private boolean areViewsHidden = false;
+    private boolean isOldLongClick;
     private boolean isFromEnhancedPlayerView = false;
-    private float FSpeed = 1.0f;
-    private CustomProgress SoundProgress;
-    private ConstraintLayout volumes, Base;
-    private CardView Speed, bottomControls;
-    private CardView SpeedCard;
-    private RecyclerView Speeds;
-    private LinearLayout UserID;
-    private SpeedProgress progress;
-    private TextView SpeedT, UID, TimeLeft;
-    private Volume SoundIcon;
-    private ImageButton Play;
-    private ImageView close, shrink, MoreSettings;
-    private CustomDefaultTimeBar Progress;
-    private final BroadcastReceiver playbackBroadCastReceiver = new BroadcastReceiver() {
+    private float playbackSpeed = 1.0f;
+    private CustomProgress volumeProgressBar;
+    private ConstraintLayout volumeLayout, baseLayout;
+    private CardView speedCardView, Speed2CardView, bottomControlCardView;
+    private RecyclerView speedRecyclerView;
+    private LinearLayout userIdLayout;
+    private SpeedProgress speedProgressBar;
+    private TextView speedTextView, userIdTextView, timeLeftTextView;
+    private Volume volumeIcon;
+    private ImageButton playPauseButton;
+    private ImageView additionalImageView, shrinkImageView, moreSettingsImageView;
+    private CustomDefaultTimeBar customTimeBar;
+    private final BroadcastReceiver playbackBroadcastReceiver = new BroadcastReceiver() {
         @Override
-        public void onReceive(Context c, Intent i) {
-            if (i == null || !ACTION_MEDIA_CONTROL.equals(i.getAction())) return;
-
-            final int controlType = i.getIntExtra(EXTRA_CONTROL_TYPE, -1);
-            switch (controlType) {
-                case CONTROL_TYPE_BACK -> {
-                    int seekPosition = (int) player.getCurrentPosition() - 10000;
-                    player.seekTo(seekPosition);
-                    Progress.setPosition(seekPosition);
-                }
-
-                case CONTROL_TYPE_PLAYBACK -> {
-                    if (player.isPlaying()) {
-                        player.pause();
-                        Play.setImageResource(R.drawable.play);
-                        updatePictureInPictureActions(R.drawable.play);
-                    } else {
-                        player.play();
-                        Play.setImageResource(R.drawable.pause);
-                        updatePictureInPictureActions(R.drawable.pause);
-                    }
-                }
-
-                case CONTROL_TYPE_FORWARD -> {
-                    int seekPosition = (int) player.getCurrentPosition() + 10000;
-                    player.seekTo(seekPosition);
-                    Progress.setPosition(seekPosition);
-                }
-            }
+        public void onReceive(Context context, Intent intent) {
+            if (intent == null || !ACTION_MEDIA_CONTROL.equals(intent.getAction())) return;
+            int controlType = intent.getIntExtra(EXTRA_CONTROL_TYPE, -1);
+            handleMediaControl(controlType);
         }
     };
     private EnhancedPlayerListener listener;
-    private SpeedRecyclerAdapter adapter;
+    private SpeedRecyclerAdapter speedAdapter;
 
     public EnhancedPlayerView(Context context) {
         super(context, null);
-        gestureDetector = new GestureDetector(context, new GestureListener());
-        initializeViews();
     }
 
     public EnhancedPlayerView(Context context, AttributeSet attrs) {
         super(context, attrs, 0);
-        TypedArray typedArray = context.obtainStyledAttributes(attrs, R.styleable.EnhancedPlayerView);
-        controllerShowTime = typedArray.getInteger(R.styleable.EnhancedPlayerView_hide_time_out, 5000);
-        showClose = typedArray.getBoolean(R.styleable.EnhancedPlayerView_show_close, false);
-        showFloatingText = typedArray.getBoolean(R.styleable.EnhancedPlayerView_show_floating_text, false);
-        hideONTouch = typedArray.getBoolean(R.styleable.EnhancedPlayerView_hide_by_touching, true);
-        typedArray.recycle();
 
-        gestureDetector = new GestureDetector(context, new GestureListener());
-        initializeViews();
     }
 
     public EnhancedPlayerView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-        TypedArray typedArray = context.obtainStyledAttributes(attrs, R.styleable.EnhancedPlayerView);
-        controllerShowTime = typedArray.getInteger(R.styleable.EnhancedPlayerView_hide_time_out, 5000);
-        showClose = typedArray.getBoolean(R.styleable.EnhancedPlayerView_show_close, false);
-        showFloatingText = typedArray.getBoolean(R.styleable.EnhancedPlayerView_show_floating_text, false);
-        hideONTouch = typedArray.getBoolean(R.styleable.EnhancedPlayerView_hide_by_touching, true);
-        typedArray.recycle();
-
+        if (attrs != null) {
+            TypedArray typedArray = context.getTheme().obtainStyledAttributes(attrs, R.styleable.EnhancedPlayerView, defStyleAttr, 0);
+            try {
+                hideTimeout = typedArray.getInteger(R.styleable.EnhancedPlayerView_hideTimeout, 5000);
+                showAdditionalButton = typedArray.getBoolean(R.styleable.EnhancedPlayerView_showAdditionalButton, false);
+                showFloatingText = typedArray.getBoolean(R.styleable.EnhancedPlayerView_showFloatingText, false);
+                hideOnTouch = typedArray.getBoolean(R.styleable.EnhancedPlayerView_hideByTouching, true);
+                additionalButtonImageId = typedArray.getResourceId(R.styleable.EnhancedPlayerView_additionalButtonImage, -1);
+            } finally {
+                typedArray.recycle();
+            }
+        }
         gestureDetector = new GestureDetector(context, new GestureListener());
         initializeViews();
     }
@@ -231,17 +202,17 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
 
     @Override
     public boolean isControllerFullyVisible() {
-        return bottomControls.getVisibility() == View.VISIBLE;
+        return bottomControlCardView.getVisibility() == View.VISIBLE;
     }
 
     @Override
     public int getControllerShowTimeoutMs() {
-        return controllerShowTime;
+        return hideTimeout;
     }
 
     @Override
     public void setControllerShowTimeoutMs(int controllerShowTimeoutMs) {
-        controllerShowTime = controllerShowTimeoutMs;
+        hideTimeout = controllerShowTimeoutMs;
     }
 
     @Override
@@ -251,12 +222,12 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
 
     @Override
     public boolean getControllerHideOnTouch() {
-        return hideONTouch;
+        return hideOnTouch;
     }
 
     @Override
-    public void setControllerHideOnTouch(boolean controllerHideOnTouch) {
-        hideONTouch = controllerHideOnTouch;
+    public void setControllerHideOnTouch(boolean controllerShowTimeoutMs) {
+        hideOnTouch = controllerShowTimeoutMs;
     }
 
     @Override
@@ -267,90 +238,92 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
     }
 
     private void initializeViews() {
-        Base = findViewById(R.id.Base);
-        Play = findViewById(R.id.exo_play);
-        Progress = findViewById(R.id.exo_progress);
-        MoreSettings = findViewById(R.id.more_settings);
-        SoundProgress = findViewById(R.id.sound_progress);
-        SoundIcon = findViewById(R.id.sound_icon);
-        close = findViewById(R.id.close);
-        shrink = findViewById(R.id.shrink);
-        bottomControls = findViewById(R.id.controls);
-        volumes = findViewById(R.id.volumes);
-        TimeLeft = findViewById(R.id.timeLeft);
-        Speed = findViewById(R.id.speed);
-        SpeedCard = findViewById(R.id.speedCard);
-        Speeds = findViewById(R.id.speeds);
-        SpeedT = findViewById(R.id.SpeedT);
-        progress = findViewById(R.id.progress);
-        UID = findViewById(R.id.userID);
-        UserID = findViewById(R.id.UserID);
+        baseLayout = findViewById(R.id.Base);
+        playPauseButton = findViewById(R.id.exo_play);
+        customTimeBar = findViewById(R.id.exo_progress);
+        moreSettingsImageView = findViewById(R.id.more_settings);
+        volumeProgressBar = findViewById(R.id.sound_progress);
+        volumeIcon = findViewById(R.id.sound_icon);
+        additionalImageView = findViewById(R.id.additional_button);
+        shrinkImageView = findViewById(R.id.shrink);
+        bottomControlCardView = findViewById(R.id.controls);
+        volumeLayout = findViewById(R.id.volumes);
+        timeLeftTextView = findViewById(R.id.timeLeft);
+        Speed2CardView = findViewById(R.id.speed);
+        speedCardView = findViewById(R.id.speedCard);
+        speedRecyclerView = findViewById(R.id.speeds);
+        speedTextView = findViewById(R.id.SpeedT);
+        speedProgressBar = findViewById(R.id.progress);
+        userIdTextView = findViewById(R.id.userID);
+        userIdLayout = findViewById(R.id.UserID);
     }
 
     private void initialize() {
-        showCloseButton(showClose);
+        if (additionalButtonImageId != -1)
+            additionalImageView.setImageBitmap(BitmapFactory.decodeResource(getResources(), additionalButtonImageId));
+        showCloseButton(showAdditionalButton);
         showFloatingText(showFloatingText);
         setOnTouchListener(this);
 
-        Progress.setPlayer(player);
-        progress.setMaxSetup();
-        progress.SetupProgress(player, SpeedT);
+        customTimeBar.setPlayer(exoPlayer);
+        speedProgressBar.setMaxSetup();
+        speedProgressBar.SetupProgress(exoPlayer, speedTextView);
 
-        if (controllerShowTime != 0)
-            handler2.postDelayed(this::ControllerAnimation, controllerShowTime);
-        speeds.add(new SpeedItems("0.5x", 0.5f, 0));
-        speeds.add(new SpeedItems("Normal", 1.0f, 1));
-        speeds.add(new SpeedItems("1.5x", 1.5f, 0));
-        speeds.add(new SpeedItems("2.0x", 2.0f, 0));
+        if (hideTimeout != 0)
+            hideControllerHandler.postDelayed(this::ControllerAnimation, hideTimeout);
+        speedItemsList.add(new SpeedItems("0.5x", 0.5f, 0));
+        speedItemsList.add(new SpeedItems("Normal", 1.0f, 1));
+        speedItemsList.add(new SpeedItems("1.5x", 1.5f, 0));
+        speedItemsList.add(new SpeedItems("2.0x", 2.0f, 0));
 
-        adapter = new SpeedRecyclerAdapter(speeds, player);
-        adapter.setSpeedProgress(progress);
-        Speeds.addItemDecoration(new RecyclerViewDivider(getContext(), R.drawable.item_devider));
-        Speeds.setLayoutManager(new LinearLayoutManager(getContext()));
-        Speeds.setAdapter(adapter);
-        progress.setSpeedRecAdapter(adapter);
+        speedAdapter = new SpeedRecyclerAdapter(speedItemsList, exoPlayer);
+        speedAdapter.setSpeedProgress(speedProgressBar);
+        speedRecyclerView.addItemDecoration(new RecyclerViewDivider(getContext(), R.drawable.item_devider));
+        speedRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+        speedRecyclerView.setAdapter(speedAdapter);
+        speedProgressBar.setSpeedRecAdapter(speedAdapter);
 
-        SpeedCard.post(() -> {
-            OHeight = SpeedCard.getMeasuredHeight();
-            OWidth = SpeedCard.getMeasuredWidth();
+        speedCardView.post(() -> {
+            originalHeight = speedCardView.getMeasuredHeight();
+            originalWidth = speedCardView.getMeasuredWidth();
             ReturnSpeedCardBack();
         });
 
         if (showFloatingText) {
-            UserID.post(() -> {
-                containerWidth = UserID.getMeasuredWidth();
-                containerHeight = UserID.getMeasuredHeight();
-                animateTextPosition(containerWidth, containerHeight, UID);
+            userIdLayout.post(() -> {
+                containerWidth = userIdLayout.getMeasuredWidth();
+                containerHeight = userIdLayout.getMeasuredHeight();
+                animateTextPosition(containerWidth, containerHeight, userIdTextView);
             });
         }
 
         mediaRouter = MediaRouter.getInstance(getContext());
-        selector = new MediaRouteSelector.Builder().addControlCategory(MediaControlIntent.CATEGORY_LIVE_AUDIO).build();
+        mediaRouteSelector = new MediaRouteSelector.Builder().addControlCategory(MediaControlIntent.CATEGORY_LIVE_AUDIO).build();
 
         AudioManager audioManager = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
         int streamType = AudioManager.STREAM_MUSIC;
         int maxVolume = audioManager.getStreamMaxVolume(streamType);
         int volume = audioManager.getStreamVolume(streamType);
-        SoundProgress.setMax(maxVolume);
-        SoundProgress.setProgress(volume);
+        volumeProgressBar.setMax(maxVolume);
+        volumeProgressBar.setProgress(volume);
 
-        Callback = new MediaRouter.Callback() {
+        mediaRouterCallback = new MediaRouter.Callback() {
             @Override
             public void onRouteVolumeChanged(@NonNull MediaRouter router, @NonNull MediaRouter.RouteInfo info) {
                 int volume = info.getVolume();
-                SoundProgress.setProgress(volume);
-                SoundIcon.setVolume(volume);
+                volumeProgressBar.setProgress(volume);
+                volumeIcon.setVolume(volume);
             }
         };
 
         registerVolumeObserver();
 
-        SoundProgress.setProgressChangesListener(new CustomProgress.progressChangesListener() {
+        volumeProgressBar.setProgressChangesListener(new CustomProgress.ProgressChangesListener() {
 
             @Override
             public void onProgressChanges(int progress) {
                 audioManager.setStreamVolume(streamType, progress, 0);
-                SoundIcon.setVolume(progress);
+                volumeIcon.setVolume(progress);
             }
 
             @Override
@@ -362,39 +335,65 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
             }
         });
 
-        Progress.setProgressChangeListener(this);
+        customTimeBar.setProgressChangeListener(this);
 
-        MoreSettings.setOnClickListener(this);
-        Play.setOnClickListener(this);
-        close.setOnClickListener(this);
-        shrink.setOnClickListener(this);
+        moreSettingsImageView.setOnClickListener(this);
+        playPauseButton.setOnClickListener(this);
+        additionalImageView.setOnClickListener(this);
+        shrinkImageView.setOnClickListener(this);
 
         originalResizeMode = getResizeMode();
         addOnLayoutChangeListener(this);
+    }
+
+    private void handleMediaControl(int controlType) {
+        switch (controlType) {
+            case CONTROL_TYPE_BACK -> {
+                int seekPosition = (int) exoPlayer.getCurrentPosition() - 10000;
+                exoPlayer.seekTo(seekPosition);
+                customTimeBar.setPosition(seekPosition);
+            }
+            case CONTROL_TYPE_PLAYBACK -> {
+                if (exoPlayer.isPlaying()) {
+                    exoPlayer.pause();
+                    playPauseButton.setImageResource(R.drawable.play);
+                    updatePictureInPictureActions(R.drawable.play);
+                } else {
+                    exoPlayer.play();
+                    playPauseButton.setImageResource(R.drawable.pause);
+                    updatePictureInPictureActions(R.drawable.pause);
+                }
+            }
+            case CONTROL_TYPE_FORWARD -> {
+                int seekPosition = (int) exoPlayer.getCurrentPosition() + 10000;
+                exoPlayer.seekTo(seekPosition);
+                customTimeBar.setPosition(seekPosition);
+            }
+        }
     }
 
     @Override
     public void setPlayer(Player player) {
         super.setPlayer(player);
         if (player != null) {
-            this.player = (ExoPlayer) player;
+            this.exoPlayer = (ExoPlayer) player;
             initialize();
         }
     }
 
     @Override
     public void onClick(View v) {
-        if (v.getId() == Play.getId()) {
+        if (v.getId() == playPauseButton.getId()) {
             if (VisibilityChecking()) ReturnSpeedCardBack();
             ValueAnimator scaleAni = ValueAnimator.ofFloat(1f, 0.9f);
 
-            if (player != null) {
-                if (player.isPlaying()) {
+            if (exoPlayer != null) {
+                if (exoPlayer.isPlaying()) {
                     if (scaleAni.isRunning()) scaleAni.cancel();
 
                     scaleAni.addUpdateListener(animation -> {
-                        Play.setScaleX((float) animation.getAnimatedValue());
-                        Play.setScaleY((float) animation.getAnimatedValue());
+                        playPauseButton.setScaleX((float) animation.getAnimatedValue());
+                        playPauseButton.setScaleY((float) animation.getAnimatedValue());
                     });
                     scaleAni.addListener(new AnimatorListenerAdapter() {
                         @Override
@@ -403,7 +402,7 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
                             if (reversing) {
                                 reversing = false;
                             } else {
-                                Play.setImageResource(R.drawable.play);
+                                playPauseButton.setImageResource(R.drawable.play);
                                 updatePictureInPictureActions(R.drawable.play);
                                 reversing = true;
                                 scaleAni.reverse();
@@ -413,13 +412,13 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
                     scaleAni.setDuration(250);
                     scaleAni.setInterpolator(new AccelerateDecelerateInterpolator());
                     scaleAni.start();
-                    player.pause();
+                    exoPlayer.pause();
                 } else {
                     if (scaleAni.isRunning()) scaleAni.cancel();
 
                     scaleAni.addUpdateListener(animation -> {
-                        Play.setScaleX((float) animation.getAnimatedValue());
-                        Play.setScaleY((float) animation.getAnimatedValue());
+                        playPauseButton.setScaleX((float) animation.getAnimatedValue());
+                        playPauseButton.setScaleY((float) animation.getAnimatedValue());
                     });
                     scaleAni.addListener(new AnimatorListenerAdapter() {
                         @Override
@@ -428,7 +427,7 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
                             if (reversing) {
                                 reversing = false;
                             } else {
-                                Play.setImageResource(R.drawable.pause);
+                                playPauseButton.setImageResource(R.drawable.pause);
                                 updatePictureInPictureActions(R.drawable.pause);
                                 reversing = true;
                                 scaleAni.reverse();
@@ -438,15 +437,15 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
                     scaleAni.setDuration(250);
                     scaleAni.setInterpolator(new AccelerateDecelerateInterpolator());
                     scaleAni.start();
-                    player.play();
+                    exoPlayer.play();
                 }
             }
-        } else if (v.getId() == shrink.getId()) {
+        } else if (v.getId() == shrinkImageView.getId()) {
             if (VisibilityChecking()) ReturnSpeedCardBack();
             if (getContext().getPackageManager().hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     if (Settings.canDrawOverlays(getContext())) {
-                        if (isPiP) {
+                        if (isPipMode) {
                             leavePIP();
                         } else {
                             requestPIP();
@@ -456,42 +455,42 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
                     }
                 }
             }
-        } else if (v.getId() == close.getId()) {
+        } else if (v.getId() == additionalImageView.getId()) {
             if (VisibilityChecking()) ReturnSpeedCardBack();
             if (listener != null) listener.onCloseClicked();
-        } else if (v.getId() == MoreSettings.getId()) {
+        } else if (v.getId() == moreSettingsImageView.getId()) {
             if (VisibilityChecking()) {
                 ReturnSpeedCardBack();
             } else {
-                if (adapter != null) {
-                    float chosenSpeed = adapter.getChoseSpeed();
-                    float speed = player.getPlaybackParameters().speed;
-                    boolean speedContains = speeds.contains(new SpeedItems(speed));
+                if (speedAdapter != null) {
+                    float chosenSpeed = speedAdapter.getChoseSpeed();
+                    float speed = exoPlayer.getPlaybackParameters().speed;
+                    boolean speedContains = speedItemsList.contains(new SpeedItems(speed));
 
                     if ((chosenSpeed != -1 && speedContains && chosenSpeed != speed) || (chosenSpeed == -1 && speedContains))
-                        updateRecyclerViewData(chosenSpeed != -1 ? getSpeedItem(speeds, speed) : -1);
+                        updateRecyclerViewData(chosenSpeed != -1 ? getSpeedItem(speedItemsList, speed) : -1);
                 }
 
-                @SuppressLint("Recycle") ValueAnimator VW = createValueAnimator(-3, OWidth, false, 300, value -> {
+                @SuppressLint("Recycle") ValueAnimator VW = createValueAnimator(-3, originalWidth, false, 300, value -> {
                     int wd = (int) value.getAnimatedValue();
                     if (wd != -2 && wd != -1 && wd != 0) adjustLayoutParams(wd, null);
                 });
 
-                @SuppressLint("Recycle") ValueAnimator VH = createValueAnimator(-3, OHeight, false, 300, value -> {
+                @SuppressLint("Recycle") ValueAnimator VH = createValueAnimator(-3, originalHeight, false, 300, value -> {
                     int hg = (int) value.getAnimatedValue();
                     if (hg != -2 && hg != -1 && hg != 0) adjustLayoutParams(null, hg);
                 });
 
                 @SuppressLint("Recycle") ValueAnimator VV = createValueAnimator(0.94f, 0.85f, true, 250, value -> {
-                    ConstraintLayout.LayoutParams params = (ConstraintLayout.LayoutParams) SpeedCard.getLayoutParams();
+                    ConstraintLayout.LayoutParams params = (ConstraintLayout.LayoutParams) speedCardView.getLayoutParams();
                     params.verticalBias = (float) value.getAnimatedValue();
-                    SpeedCard.setLayoutParams(params);
+                    speedCardView.setLayoutParams(params);
                 });
 
                 @SuppressLint("Recycle") ValueAnimator VCH = createValueAnimator(0.89f, 0.9f, true, 250, value -> {
-                    ConstraintLayout.LayoutParams params = (ConstraintLayout.LayoutParams) SpeedCard.getLayoutParams();
+                    ConstraintLayout.LayoutParams params = (ConstraintLayout.LayoutParams) speedCardView.getLayoutParams();
                     params.horizontalBias = (float) value.getAnimatedValue();
-                    SpeedCard.setLayoutParams(params);
+                    speedCardView.setLayoutParams(params);
                 });
 
                 VW.addListener(new AnimatorListenerAdapter() {
@@ -503,7 +502,7 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
 
                     @Override
                     public void onAnimationStart(Animator animator) {
-                        SpeedCard.setVisibility(View.VISIBLE);
+                        speedCardView.setVisibility(View.VISIBLE);
                     }
                 });
 
@@ -516,9 +515,9 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
 
     @SuppressLint("Recycle")
     private void ControllerAnimation() {
-        if (!(VisibilityChecking() || SoundProgress.isDragging() || progress.isDragging() || Progress.isDragging())) {
-            handler2.removeCallbacksAndMessages(null);
-            ValueAnimator hide = bottomControls.getVisibility() == View.VISIBLE ? ValueAnimator.ofFloat(1f, 0f) : ValueAnimator.ofFloat(0f, 1f);
+        if (!(VisibilityChecking() || volumeProgressBar.isDragging() || speedProgressBar.isDragging() || customTimeBar.isDragging())) {
+            hideControllerHandler.removeCallbacksAndMessages(null);
+            ValueAnimator hide = bottomControlCardView.getVisibility() == View.VISIBLE ? ValueAnimator.ofFloat(1f, 0f) : ValueAnimator.ofFloat(0f, 1f);
             hide.setDuration(300);
             if (hide.isRunning()) hide.cancel();
 
@@ -532,9 +531,10 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
                 @Override
                 public void onAnimationEnd(Animator animation) {
                     super.onAnimationEnd(animation);
-                    if (!hiddenViews) hideAllViews(true);
-                    else handler2.postDelayed(() -> ControllerAnimation(), controllerShowTime);
-                    hiddenViews = !hiddenViews;
+                    if (!areViewsHidden) hideAllViews(true);
+                    else
+                        hideControllerHandler.postDelayed(() -> ControllerAnimation(), hideTimeout);
+                    areViewsHidden = !areViewsHidden;
                     handleClicksAndTouches(click, touch);
                 }
             });
@@ -544,19 +544,19 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
 
     private void handleClicksAndTouches(View.OnClickListener click, View.OnTouchListener touch) {
         setOnTouchListener(touch);
-        MoreSettings.setOnClickListener(click);
-        Play.setOnClickListener(click);
-        close.setOnClickListener(click);
-        shrink.setOnClickListener(click);
+        moreSettingsImageView.setOnClickListener(click);
+        playPauseButton.setOnClickListener(click);
+        additionalImageView.setOnClickListener(click);
+        shrinkImageView.setOnClickListener(click);
     }
 
     private void changeAllViewsAlpha(float alpha) {
-        volumes.setAlpha(alpha);
-        if (alpha <= 0.74f) bottomControls.setAlpha(alpha);
-        shrink.setAlpha(alpha);
-        close.setAlpha(alpha);
-        if (alpha <= 0.6f) Play.setAlpha(alpha);
-        SpeedCard.setAlpha(alpha);
+        volumeLayout.setAlpha(alpha);
+        if (alpha <= 0.74f) bottomControlCardView.setAlpha(alpha);
+        shrinkImageView.setAlpha(alpha);
+        additionalImageView.setAlpha(alpha);
+        if (alpha <= 0.6f) playPauseButton.setAlpha(alpha);
+        speedCardView.setAlpha(alpha);
     }
 
     @Override
@@ -574,25 +574,25 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
             return true;
         } else {
             Rect rect = new Rect();
-            bottomControls.getHitRect(rect);
+            bottomControlCardView.getHitRect(rect);
 
             if (!rect.contains((int) event.getRawX(), (int) event.getRawY())) {
                 switch (event.getAction() & MotionEvent.ACTION_MASK) {
                     case MotionEvent.ACTION_DOWN -> {
-                        handler.removeCallbacksAndMessages(null);
-                        handler2.removeCallbacksAndMessages(null);
+                        mainHandler.removeCallbacksAndMessages(null);
+                        hideControllerHandler.removeCallbacksAndMessages(null);
 
                         isClickOnRight = x > (float) width / 2;
 
                         if (isClickOnRight) {
-                            handler.postDelayed(() -> {
+                            mainHandler.postDelayed(() -> {
                                 isLongClick = true;
-                                FSpeed = player.getPlaybackParameters().speed;
-                                if (adapter != null)
-                                    updateRecyclerViewData(getSpeedItem(speeds, 2.0f));
+                                playbackSpeed = exoPlayer.getPlaybackParameters().speed;
+                                if (speedAdapter != null)
+                                    updateRecyclerViewData(getSpeedItem(speedItemsList, 2.0f));
 
-                                player.setPlaybackSpeed(2.0f);
-                                AnimateAlpha(Speed, Speed.getAlpha(), 1f);
+                                exoPlayer.setPlaybackSpeed(2.0f);
+                                AnimateAlpha(Speed2CardView, Speed2CardView.getAlpha(), 1f);
                             }, ViewConfiguration.getLongPressTimeout());
                         }
                     }
@@ -601,32 +601,32 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
                         if (isLongClick) {
                             if (event.getX() < (float) width / 2) {
                                 isClickOnRight = false;
-                                if (adapter != null)
-                                    updateRecyclerViewData(getSpeedItem(speeds, FSpeed));
-                                player.setPlaybackSpeed(FSpeed);
-                                AnimateAlpha(Speed, Speed.getAlpha(), 0f);
+                                if (speedAdapter != null)
+                                    updateRecyclerViewData(getSpeedItem(speedItemsList, playbackSpeed));
+                                exoPlayer.setPlaybackSpeed(playbackSpeed);
+                                AnimateAlpha(Speed2CardView, Speed2CardView.getAlpha(), 0f);
                             } else if (!isClickOnRight) {
                                 isClickOnRight = true;
-                                if (adapter != null)
-                                    updateRecyclerViewData(getSpeedItem(speeds, 2.0f));
-                                player.setPlaybackSpeed(2.0f);
-                                AnimateAlpha(Speed, Speed.getAlpha(), 1f);
+                                if (speedAdapter != null)
+                                    updateRecyclerViewData(getSpeedItem(speedItemsList, 2.0f));
+                                exoPlayer.setPlaybackSpeed(2.0f);
+                                AnimateAlpha(Speed2CardView, Speed2CardView.getAlpha(), 1f);
                             }
                         }
                     }
 
                     case MotionEvent.ACTION_UP -> {
                         isClickOnRight = false;
-                        handler.removeCallbacksAndMessages(null);
-                        oldLongClick = isLongClick;
+                        mainHandler.removeCallbacksAndMessages(null);
+                        isOldLongClick = isLongClick;
                         if (isLongClick) {
                             isLongClick = false;
-                            if (adapter != null)
-                                updateRecyclerViewData(getSpeedItem(speeds, FSpeed));
-                            player.setPlaybackSpeed(FSpeed);
-                            AnimateAlpha(Speed, Speed.getAlpha(), 0f);
-                            if (controllerShowTime != 0)
-                                handler2.postDelayed(this::ControllerAnimation, controllerShowTime);
+                            if (speedAdapter != null)
+                                updateRecyclerViewData(getSpeedItem(speedItemsList, playbackSpeed));
+                            exoPlayer.setPlaybackSpeed(playbackSpeed);
+                            AnimateAlpha(Speed2CardView, Speed2CardView.getAlpha(), 0f);
+                            if (hideTimeout != 0)
+                                hideControllerHandler.postDelayed(this::ControllerAnimation, hideTimeout);
                         }
                     }
                 }
@@ -638,7 +638,7 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
     }
 
     private int getSeekPosition() {
-        return isClickOnRight ? (int) player.getCurrentPosition() + 10000 : (int) player.getCurrentPosition() - 10000;
+        return isClickOnRight ? (int) exoPlayer.getCurrentPosition() + 10000 : (int) exoPlayer.getCurrentPosition() - 10000;
     }
 
     public void initializeDatabaseProvider() {
@@ -665,7 +665,7 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
 
     @Override
     public void onProgressChanges(TimeBar timeBar, long position) {
-        player.seekTo(position);
+        exoPlayer.seekTo(position);
         updateRemainTime(position);
     }
 
@@ -696,7 +696,7 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
     public void onIsPlayingChanged(boolean isPlaying) {
         Listener.super.onIsPlayingChanged(isPlaying);
         updateProgress();
-        if (isPlaying) updateRemainTime(player.getCurrentPosition());
+        if (isPlaying) updateRemainTime(exoPlayer.getCurrentPosition());
     }
 
     @Override
@@ -708,13 +708,13 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
     @Override
     public void onPlaybackStateChanged(int state) {
         Listener.super.onPlaybackStateChanged(state);
-        boolean Playing = player.isPlaying();
+        boolean Playing = exoPlayer.isPlaying();
 
         updateProgress();
-        TimeLeft.setText(formatTime(player.getDuration()));
+        timeLeftTextView.setText(formatTime(exoPlayer.getDuration()));
 
         if (state == Player.STATE_READY) {
-            if (isPiP) {
+            if (isPipMode) {
                 if (Playing) {
                     updatePictureInPictureActions(R.drawable.pause);
                 } else {
@@ -722,8 +722,8 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
                 }
             }
         } else if (state == Player.STATE_ENDED) {
-            if (isPiP) {
-                Play.setImageResource(R.drawable.play);
+            if (isPipMode) {
+                playPauseButton.setImageResource(R.drawable.play);
                 updatePictureInPictureActions(R.drawable.play);
             }
         }
@@ -732,26 +732,26 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
     @Override
     public void onTimelineChanged(@NonNull Timeline timeline, int reason) {
         Listener.super.onTimelineChanged(timeline, reason);
-        if (player.getDuration() != C.TIME_UNSET) {
+        if (exoPlayer.getDuration() != C.TIME_UNSET) {
             updateProgress();
-            TimeLeft.setText(formatTime(player.getDuration()));
+            timeLeftTextView.setText(formatTime(exoPlayer.getDuration()));
         }
     }
 
     private void updateProgress() {
-        if (player == null) return;
+        if (exoPlayer == null) return;
 
-        long duration = player.getDuration();
-        long position = player.getCurrentPosition();
-        long bufferedPosition = player.getBufferedPosition();
+        long duration = exoPlayer.getDuration();
+        long position = exoPlayer.getCurrentPosition();
+        long bufferedPosition = exoPlayer.getBufferedPosition();
 
-        Progress.setDuration(duration);
-        Progress.setPosition(position);
-        Progress.setBufferedPosition(bufferedPosition);
+        customTimeBar.setDuration(duration);
+        customTimeBar.setPosition(position);
+        customTimeBar.setBufferedPosition(bufferedPosition);
     }
 
     private void updateRemainTime(long position) {
-        TimeLeft.setText(formatTime(player.getDuration() - position));
+        timeLeftTextView.setText(formatTime(exoPlayer.getDuration() - position));
     }
 
     private ValueAnimator createValueAnimator(Object from, Object to, boolean Float, int duration, ValueAnimator.AnimatorUpdateListener updateListener) {
@@ -762,20 +762,20 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
     }
 
     private void adjustLayoutParams(Integer width, Integer height) {
-        ViewGroup.LayoutParams params = SpeedCard.getLayoutParams();
+        ViewGroup.LayoutParams params = speedCardView.getLayoutParams();
         if (width != null) params.width = width;
         if (height != null) params.height = height;
-        SpeedCard.setLayoutParams(params);
-        Base.requestLayout();
+        speedCardView.setLayoutParams(params);
+        baseLayout.requestLayout();
     }
 
     private void animateScaling() {
         ValueAnimator scaling = ValueAnimator.ofFloat(1.0f, 1.1f);
         scaling.addUpdateListener(animation -> {
             float scale = (float) animation.getAnimatedValue();
-            SpeedCard.setScaleX(scale);
-            SpeedCard.setScaleY(scale);
-            Base.requestLayout();
+            speedCardView.setScaleX(scale);
+            speedCardView.setScaleY(scale);
+            baseLayout.requestLayout();
         });
         scaling.setDuration(150);
         scaling.setRepeatMode(ValueAnimator.REVERSE);
@@ -788,9 +788,9 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             final Icon icon = Icon.createWithResource(getContext(), iconId);
             try {
-                actions.set(EnhancedPlayerView.REQUEST_PLAYBACK, new RemoteAction(icon, "PlayBack", "PlayBack", i));
-                pictureParams.setActions(actions);
-                ((Activity) getContext()).setPictureInPictureParams(pictureParams.build());
+                remoteActions.set(EnhancedPlayerView.REQUEST_PLAYBACK, new RemoteAction(icon, "PlayBack", "PlayBack", i));
+                pipParamsBuilder.setActions(remoteActions);
+                ((Activity) getContext()).setPictureInPictureParams(pipParamsBuilder.build());
             } catch (Exception ignored) {
             }
         }
@@ -803,54 +803,54 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             final Icon icon1 = Icon.createWithResource(getContext(), R.drawable.back);
-            actions.add(new RemoteAction(icon1, "Back", "Back", i1));
+            remoteActions.add(new RemoteAction(icon1, "Back", "Back", i1));
 
-            final Icon icon2 = player.isPlaying() ? Icon.createWithResource(getContext(), R.drawable.pause) : Icon.createWithResource(getContext(), R.drawable.play);
-            actions.add(new RemoteAction(icon2, "PlayBack", "PlayBack", i2));
+            final Icon icon2 = exoPlayer.isPlaying() ? Icon.createWithResource(getContext(), R.drawable.pause) : Icon.createWithResource(getContext(), R.drawable.play);
+            remoteActions.add(new RemoteAction(icon2, "PlayBack", "PlayBack", i2));
 
             final Icon icon3 = Icon.createWithResource(getContext(), R.drawable.forward);
-            actions.add(new RemoteAction(icon3, "Forward", "Forward", i3));
+            remoteActions.add(new RemoteAction(icon3, "Forward", "Forward", i3));
 
-            pictureParams.setActions(actions);
-            ((Activity) getContext()).setPictureInPictureParams(pictureParams.build());
+            pipParamsBuilder.setActions(remoteActions);
+            ((Activity) getContext()).setPictureInPictureParams(pipParamsBuilder.build());
         }
     }
 
     private void hideAllViews(boolean InVISIBLE) {
         if (InVISIBLE) {
-            volumes.setVisibility(View.INVISIBLE);
-            bottomControls.setVisibility(View.INVISIBLE);
-            shrink.setVisibility(View.INVISIBLE);
-            if (showClose) close.setVisibility(View.INVISIBLE);
-            else close.setVisibility(View.GONE);
-            Play.setVisibility(View.INVISIBLE);
-            SpeedCard.setVisibility(View.INVISIBLE);
+            volumeLayout.setVisibility(View.INVISIBLE);
+            bottomControlCardView.setVisibility(View.INVISIBLE);
+            shrinkImageView.setVisibility(View.INVISIBLE);
+            if (showAdditionalButton) additionalImageView.setVisibility(View.INVISIBLE);
+            else additionalImageView.setVisibility(View.GONE);
+            playPauseButton.setVisibility(View.INVISIBLE);
+            speedCardView.setVisibility(View.INVISIBLE);
         } else {
-            volumes.setVisibility(View.GONE);
-            bottomControls.setVisibility(View.GONE);
-            shrink.setVisibility(View.GONE);
-            close.setVisibility(View.GONE);
-            Play.setVisibility(View.GONE);
-            SpeedCard.setVisibility(View.GONE);
+            volumeLayout.setVisibility(View.GONE);
+            bottomControlCardView.setVisibility(View.GONE);
+            shrinkImageView.setVisibility(View.GONE);
+            additionalImageView.setVisibility(View.GONE);
+            playPauseButton.setVisibility(View.GONE);
+            speedCardView.setVisibility(View.GONE);
         }
     }
 
     private void showAllViews() {
-        volumes.setVisibility(View.VISIBLE);
-        bottomControls.setVisibility(View.VISIBLE);
-        shrink.setVisibility(View.VISIBLE);
-        if (showClose) close.setVisibility(View.VISIBLE);
-        Play.setVisibility(View.VISIBLE);
-        SpeedCard.setVisibility(View.VISIBLE);
+        volumeLayout.setVisibility(View.VISIBLE);
+        bottomControlCardView.setVisibility(View.VISIBLE);
+        shrinkImageView.setVisibility(View.VISIBLE);
+        if (showAdditionalButton) additionalImageView.setVisibility(View.VISIBLE);
+        playPauseButton.setVisibility(View.VISIBLE);
+        speedCardView.setVisibility(View.VISIBLE);
     }
 
     public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode) {
-        isPiP = isInPictureInPictureMode;
+        isPipMode = isInPictureInPictureMode;
 
         if (isInPictureInPictureMode) {
             hideAllViews(false);
         } else {
-            getContext().unregisterReceiver(playbackBroadCastReceiver);
+            getContext().unregisterReceiver(playbackBroadcastReceiver);
             showAllViews();
         }
     }
@@ -859,7 +859,7 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             if (Settings.canDrawOverlays(getContext())) {
                 Intent i = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getContext().getPackageName()));
-                ActivityResult.launch(i);
+                activityResultLauncher.launch(i);
             } else {
                 requestPIP();
             }
@@ -872,15 +872,15 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 initializePictureInRetractions();
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    getContext().registerReceiver(playbackBroadCastReceiver, new IntentFilter(ACTION_MEDIA_CONTROL), Context.RECEIVER_NOT_EXPORTED);
+                    getContext().registerReceiver(playbackBroadcastReceiver, new IntentFilter(ACTION_MEDIA_CONTROL), Context.RECEIVER_NOT_EXPORTED);
                 } else {
-                    getContext().registerReceiver(playbackBroadCastReceiver, new IntentFilter(ACTION_MEDIA_CONTROL));
+                    getContext().registerReceiver(playbackBroadcastReceiver, new IntentFilter(ACTION_MEDIA_CONTROL));
                 }
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    ((Activity) getContext()).enterPictureInPictureMode(pictureParams.setAutoEnterEnabled(true).setSeamlessResizeEnabled(true).build());
+                    ((Activity) getContext()).enterPictureInPictureMode(pipParamsBuilder.setAutoEnterEnabled(true).setSeamlessResizeEnabled(true).build());
                 } else {
-                    ((Activity) getContext()).enterPictureInPictureMode(pictureParams.build());
+                    ((Activity) getContext()).enterPictureInPictureMode(pipParamsBuilder.build());
                 }
             } else {
                 ((Activity) getContext()).enterPictureInPictureMode();
@@ -893,51 +893,51 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
     }
 
     private void registerVolumeObserver() {
-        mediaRouter.addCallback(selector, Callback);
+        mediaRouter.addCallback(mediaRouteSelector, mediaRouterCallback);
     }
 
     private void unregisterVolumeObserver() {
-        mediaRouter.removeCallback(Callback);
+        mediaRouter.removeCallback(mediaRouterCallback);
     }
 
     private void updateRecyclerViewData(int index) {
-        int ind = adapter.getIndexOfChosenSpeed();
+        int ind = speedAdapter.getIndexOfChosenSpeed();
         if (index != -1) {
             if (ind != -1) {
                 if (ind != index) {
-                    adapter.setChosen(ind, 0);
-                    adapter.setChosen(index, 1);
+                    speedAdapter.setChosen(ind, 0);
+                    speedAdapter.setChosen(index, 1);
                 }
             } else {
-                adapter.setChosen(index, 1);
+                speedAdapter.setChosen(index, 1);
             }
         } else {
-            if (ind != -1) adapter.setChosen(ind, 0);
+            if (ind != -1) speedAdapter.setChosen(ind, 0);
         }
     }
 
     private void animateTextPosition(int ContainerWidth, int ContainerHeight, TextView textView) {
         final ValueAnimator animator = ValueAnimator.ofFloat(0f, 1f);
 
-        New = getRandomPosition(ContainerWidth, ContainerHeight, textView);
+        newCoordinates = getRandomPosition(ContainerWidth, ContainerHeight, textView);
 
         animator.addUpdateListener(animation -> {
             float progress = (float) animation.getAnimatedValue();
 
-            if (oldXY == null) {
-                textView.setTranslationX(New[0] * progress);
-                textView.setTranslationY(New[1] * progress);
+            if (oldCoordinates == null) {
+                textView.setTranslationX(newCoordinates[0] * progress);
+                textView.setTranslationY(newCoordinates[1] * progress);
             } else {
-                textView.setTranslationX(oldXY[0] + (New[0] - oldXY[0]) * progress);
-                textView.setTranslationY(oldXY[1] + (New[1] - oldXY[1]) * progress);
+                textView.setTranslationX(oldCoordinates[0] + (newCoordinates[0] - oldCoordinates[0]) * progress);
+                textView.setTranslationY(oldCoordinates[1] + (newCoordinates[1] - oldCoordinates[1]) * progress);
             }
         });
 
         animator.addListener(new AnimatorListenerAdapter() {
             @Override
             public void onAnimationEnd(Animator animation) {
-                oldXY = New;
-                New = getRandomPosition(ContainerWidth, ContainerHeight, textView);
+                oldCoordinates = newCoordinates;
+                newCoordinates = getRandomPosition(ContainerWidth, ContainerHeight, textView);
                 animator.start();
             }
         });
@@ -958,25 +958,25 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
     private int getSpeedItem(List<SpeedItems> items, Object value) {
         int position = -1;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            Optional<SpeedItems> foundItem = speeds.stream().filter(item -> item.getSpeed() == (float) value).findFirst();
+            Optional<SpeedItems> foundItem = speedItemsList.stream().filter(item -> item.getSpeed() == (float) value).findFirst();
             if (foundItem.isPresent()) position = items.indexOf(foundItem.get());
         } else {
-            position = speeds.indexOf(new SpeedItems((float) value));
+            position = speedItemsList.indexOf(new SpeedItems((float) value));
         }
         return position;
     }
 
     private boolean VisibilityChecking() {
-        ViewGroup.LayoutParams speedCardParams = SpeedCard.getLayoutParams();
+        ViewGroup.LayoutParams speedCardParams = speedCardView.getLayoutParams();
         return speedCardParams.width != -3 && speedCardParams.height != -3;
     }
 
     private void ReturnSpeedCardBack() {
-        ViewGroup.LayoutParams speedCardParams = SpeedCard.getLayoutParams();
+        ViewGroup.LayoutParams speedCardParams = speedCardView.getLayoutParams();
         speedCardParams.width = -3;
         speedCardParams.height = -3;
-        SpeedCard.setLayoutParams(speedCardParams);
-        Base.requestLayout();
+        speedCardView.setLayoutParams(speedCardParams);
+        baseLayout.requestLayout();
     }
 
     @SuppressLint("Recycle")
@@ -988,7 +988,7 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
     }
 
     public void initializeActivityResult(ActivityResultRegistry register) {
-        ActivityResult = register.register("PIP_Result", new ActivityResultContracts.StartActivityForResult(), result -> {
+        activityResultLauncher = register.register("PIP_Result", new ActivityResultContracts.StartActivityForResult(), result -> {
             if (result.getResultCode() == Activity.RESULT_OK)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
                     if (Settings.canDrawOverlays(getContext())) requestPIP();
@@ -1012,13 +1012,13 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
         cache.release();
         cache = null;
         try {
-            getContext().unregisterReceiver(playbackBroadCastReceiver);
+            getContext().unregisterReceiver(playbackBroadcastReceiver);
         } catch (IllegalArgumentException ignored) {
         }
     }
 
     public void onUserLeaveHintActivity() {
-        if (player.isPlaying()) requestPIP();
+        if (exoPlayer.isPlaying()) requestPIP();
     }
 
     public void onPauseActivity() {
@@ -1053,7 +1053,7 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
     }
 
     public void changeFloatingText(String text) {
-        UID.setText(text);
+        userIdTextView.setText(text);
     }
 
     @Override
@@ -1068,13 +1068,13 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
     }
 
     public void showCloseButton(boolean show) {
-        showClose = show;
-        close.setVisibility(show ? View.VISIBLE : View.GONE);
+        showAdditionalButton = show;
+        additionalImageView.setVisibility(show ? View.VISIBLE : View.GONE);
     }
 
     public void showFloatingText(boolean show) {
         showFloatingText = show;
-        UID.setVisibility(show ? View.VISIBLE : View.GONE);
+        userIdTextView.setVisibility(show ? View.VISIBLE : View.GONE);
     }
 
     public void addListener(EnhancedPlayerListener listener) {
@@ -1089,23 +1089,23 @@ public final class EnhancedPlayerView extends PlayerView implements View.OnClick
 
         @Override
         public boolean onDoubleTap(@NonNull MotionEvent event) {
-            handler.removeCallbacksAndMessages(null);
-            handler2.removeCallbacksAndMessages(null);
+            mainHandler.removeCallbacksAndMessages(null);
+            hideControllerHandler.removeCallbacksAndMessages(null);
 
             int seekPosition = getSeekPosition();
-            player.seekTo(seekPosition);
-            Progress.setPosition(seekPosition);
-            if (controllerShowTime != 0)
-                handler2.postDelayed(EnhancedPlayerView.this::ControllerAnimation, controllerShowTime);
+            exoPlayer.seekTo(seekPosition);
+            customTimeBar.setPosition(seekPosition);
+            if (hideTimeout != 0)
+                hideControllerHandler.postDelayed(EnhancedPlayerView.this::ControllerAnimation, hideTimeout);
 
             return super.onDoubleTap(event);
         }
 
         @Override
         public boolean onSingleTapConfirmed(@NonNull MotionEvent event) {
-            if (!oldLongClick && hideONTouch) ControllerAnimation();
-            else if (controllerShowTime != 0)
-                handler2.postDelayed(EnhancedPlayerView.this::ControllerAnimation, controllerShowTime);
+            if (!isOldLongClick && hideOnTouch) ControllerAnimation();
+            else if (hideTimeout != 0)
+                hideControllerHandler.postDelayed(EnhancedPlayerView.this::ControllerAnimation, hideTimeout);
             return super.onSingleTapConfirmed(event);
         }
     }
