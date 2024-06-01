@@ -33,18 +33,12 @@ dependencies {
 ```
 
 <br>
-
-### Step 2
-> Add this file code without changing its name to your project Link:
-[exo_control_view](https://github.com/A0ks9/EnhancedPlayerView/blob/main/app/src/main/res/layout/exo_control_view.xml)
-
-<br>
   
-### Step 3
+### Step 2
 > Add this widget to your `xml` activity file
 ```xml
 <com.better.player.EnhancedPlayerView
-  android:id="@+id/name_view"
+  android:id="@+id/view_name"
   android:layout_width="match_parent"
   android:layout_height="match_parent"
   app:animation_enabled="false"
@@ -67,29 +61,12 @@ app:controller_layout_id="@layout/exo_control_view"
 
 <br>
 
-### Step 4
+### Step 3
 > add ExoPlayer to your project and use it normally
 
 <br>
 
-### Step 5
-> If you want to cache the video, so it doesn't download every time the user opens the app. Then add this to the EnhancedPlayerView view
-```java
-binding.playerView.initializeDatabaseProvider();
-binding.playerView.initializeActivityResult(getActivityResultRegistry());
-```
-
-<br>
-
-### Step 6
-> **Important:** You should add this code at the beginning Of onCreate
-```java
-binding.playerView.initializeViews(getResources(), getPackageName());
-```
-
-<br>
-
-### Step 7
+### Step 4
 > After adding ExoPlayer to the project and intializing it then use it with the EnhancedPlayerView like this
 ```java
 binding.playerView.setPlayer(player);
@@ -99,16 +76,20 @@ player.prepare();
 
 <br>
 
-### Step 8
+### Step 5
 > Add this Code in onResume of your Activity/Fragment
 ```java
 binding.playerView.onResumeActivity();
 ```
 
+<br>
+
 > Add this code in onPause of your Activity/Fragment
 ```java
 binding.playerView.onPauseActivity();
 ```
+
+<br>
 
 > Add this code in onDestory of your Activity/Fragment
 ```java
@@ -122,6 +103,28 @@ if (player != null) {
 <br>
 
 ### OPTIONAL
+> If you want to hide UserID text that moves on the screen then use this in `xml`
+```xml
+app:show_floating_text="false"
+```
+
+<br>
+
+> If you want to hide Close Image then use this in `xml`
+```xml
+app:show_close="false"
+```
+
+<br>
+
+> If you want to cache the video, so it doesn't download every time the user opens the app. Then add this to the EnhancedPlayerView view
+```java
+binding.playerView.initializeDatabaseProvider();
+binding.playerView.initializeActivityResult(getActivityResultRegistry());
+```
+
+<br>
+
 > If you are looking for video orientation based on phone orientation then Add this code in your Activity/Fragment
 ```java
 @Override
@@ -133,7 +136,6 @@ public void onConfigurationChanged(@NonNull Configuration newConfig) {
 
 <br>
 
-### OPTIONAL
 > If tou are looking for PIP for the video then Add this code in your Activity/Fragment
 ```java
 @Override
