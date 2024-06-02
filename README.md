@@ -45,7 +45,7 @@ dependencies {
   app:animation_enabled="false"
   app:controller_layout_id="@layout/exo_control_view"
   app:auto_show="true"
-  app:hideByTouching="true"
+  app:hide_by_touching="true"
   app:hide_during_ads="true"
   app:hide_on_touch="false"
   app:show_timeout="0" />
@@ -106,21 +106,14 @@ if (player != null) {
 ### OPTIONAL
 > If you want to hide UserID text that moves on the screen then use this in `xml`
 ```xml
-app:showFloatingText="false"
+app:show_floating_text="false"
 ```
 
 <br>
 
 > If you want to hide Close Image then use this in `xml`
 ```xml
-app:showAdditionalButton="false"
-```
-
-<br>
-
-> If you want to change the additional Button Image, use this
-```xml
-app:additionalButtonImage="@drawable/your_image"
+app:show_close="false"
 ```
 
 <br>
