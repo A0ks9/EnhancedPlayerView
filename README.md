@@ -2,6 +2,7 @@
 EnhancedPlayerView is a good idea for you to improve your design and make things more easy with Media3 PlayerView
 
 [![StandWithPalestine](https://raw.githubusercontent.com/karim-eg/StandWithPalestine/main/assets/palestine_badge.svg)](https://github.com/karim-eg/StandWithPalestine)
+[![](https://jitpack.io/v/A0ks9/EnhancedPlayerView.svg)](https://jitpack.io/#A0ks9/EnhancedPlayerView)
 
 <br>
 
@@ -28,7 +29,7 @@ allprojects {
 > then add this line into your `build.gradle` app level.
 ```gradle
 dependencies {
-    implementation 'com.github.A0ks9:EnhancedPlayerView:1.0.0-Beta'
+    implementation 'com.github.A0ks9:EnhancedPlayerView:1.0-Beta'
 }
 ```
 
@@ -44,7 +45,7 @@ dependencies {
   app:animation_enabled="false"
   app:controller_layout_id="@layout/exo_control_view"
   app:auto_show="true"
-  app:hide_by_touching="true"
+  app:hideByTouching="true"
   app:hide_during_ads="true"
   app:hide_on_touch="false"
   app:show_timeout="0" />
@@ -105,14 +106,30 @@ if (player != null) {
 ### OPTIONAL
 > If you want to hide UserID text that moves on the screen then use this in `xml`
 ```xml
-app:show_floating_text="false"
+app:showFloatingText="false"
 ```
 
 <br>
 
 > If you want to hide Close Image then use this in `xml`
 ```xml
-app:show_close="false"
+app:showAdditionalButton="false"
+```
+
+<br>
+
+> If you want to change the additional Button Image, use this
+```xml
+app:additionalButtonImage="@drawable/your_image"
+```
+
+<br>
+
+> listener of Additional Button Clicks
+```java
+yourPlayerView.addListener(() -> {
+    //clicked
+});
 ```
 
 <br>

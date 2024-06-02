@@ -156,7 +156,20 @@ public class EnhancedPlayerView extends PlayerView implements View.OnClickListen
 
     public EnhancedPlayerView(Context context, AttributeSet attrs) {
         super(context, attrs, 0);
-
+        if (attrs != null) {
+            TypedArray typedArray = context.getTheme().obtainStyledAttributes(attrs, R.styleable.EnhancedPlayerView, 0, 0);
+            try {
+                hideTimeout = typedArray.getInteger(R.styleable.EnhancedPlayerView_hideTimeout, 5000);
+                showAdditionalButton = typedArray.getBoolean(R.styleable.EnhancedPlayerView_showAdditionalButton, false);
+                showFloatingText = typedArray.getBoolean(R.styleable.EnhancedPlayerView_showFloatingText, false);
+                hideOnTouch = typedArray.getBoolean(R.styleable.EnhancedPlayerView_hideByTouching, true);
+                additionalButtonImageId = typedArray.getResourceId(R.styleable.EnhancedPlayerView_additionalButtonImage, -1);
+            } finally {
+                typedArray.recycle();
+            }
+        }
+        gestureDetector = new GestureDetector(context, new GestureListener());
+        initializeViews();
     }
 
     public EnhancedPlayerView(Context context, AttributeSet attrs, int defStyleAttr) {
@@ -457,7 +470,7 @@ public class EnhancedPlayerView extends PlayerView implements View.OnClickListen
             }
         } else if (v.getId() == additionalImageView.getId()) {
             if (VisibilityChecking()) ReturnSpeedCardBack();
-            if (listener != null) listener.onCloseClicked();
+            if (listener != null) listener.onAdditionalButtonClicked();
         } else if (v.getId() == moreSettingsImageView.getId()) {
             if (VisibilityChecking()) {
                 ReturnSpeedCardBack();
@@ -1082,7 +1095,7 @@ public class EnhancedPlayerView extends PlayerView implements View.OnClickListen
     }
 
     public interface EnhancedPlayerListener {
-        void onCloseClicked();
+        void onAdditionalButtonClicked();
     }
 
     private class GestureListener extends GestureDetector.SimpleOnGestureListener {
